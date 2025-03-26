@@ -85,33 +85,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 z-index: 1;
             }
             
-            /* Fixed positioning in landscape mode */
+            /* Updated landscape mode styling */
             @media (orientation: landscape) {
                 .color-container {
-                    max-width: 100vw;
+                    max-width: 100%;
+                    width: 100vw;
                     height: auto;
                     min-height: 80vh;
-                    overflow-y: visible;
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, 46px);
+                    grid-template-columns: repeat(auto-fill, minmax(46px, 46px));
                     gap: 3px;
                     justify-content: center;
-                    align-content: start;
-                    padding: 20px;
+                    align-content: flex-start;
+                    padding: 10px;
                     padding-bottom: 100px;
+                    margin: 0;
                 }
                 
                 .color-tile {
-                    position: relative !important;
+                    position: static !important;
                     display: block !important;
                     opacity: 1 !important;
                     visibility: visible !important;
                     margin: 0;
-                    transform-origin: center center;
+                    width: 40px;
+                    height: 40px;
                 }
                 
                 .dragging {
-                    position: absolute !important;
+                    position: fixed !important;
                 }
             }
             
@@ -288,21 +290,30 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Adjusting for orientation:', isLandscape ? 'landscape' : 'portrait');
         
         if (isLandscape) {
-            // Adjust for landscape mode
-            colorContainer.style.maxWidth = '90vw';
-            colorContainer.style.display = 'flex';
-            colorContainer.style.flexWrap = 'wrap';
-            colorContainer.style.justifyContent = 'center';
+            colorContainer.style.display = 'grid';
+            colorContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(46px, 46px))';
+            colorContainer.style.maxWidth = '100%';
+            colorContainer.style.width = '100vw';
+            colorContainer.style.margin = '0';
             
             // Force refresh tiles
             colorTiles.forEach(tile => {
-                tile.style.display = 'inline-block';
+                tile.style.position = 'static';
+                tile.style.display = 'block';
                 tile.style.visibility = 'visible';
                 tile.style.opacity = '1';
+                tile.style.margin = '0';
             });
         } else {
-            // Reset for portrait mode
+            colorContainer.style.display = 'flex';
+            colorContainer.style.flexWrap = 'wrap';
             colorContainer.style.maxWidth = '800px';
+            colorContainer.style.margin = '0 auto';
+            
+            colorTiles.forEach(tile => {
+                tile.style.position = '';
+                tile.style.margin = '3px';
+            });
         }
         
         // Force layout recalculation
@@ -644,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (placeholder) {
                 colorContainer.removeChild(placeholder);
             }
-            
+          
             // Reset styles
             this.classList.remove('dragging');
             this.style.opacity = '1';
