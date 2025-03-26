@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 -webkit-user-select: none;
                 -moz-user-select: none;
                 -ms-user-select: none;
+                min-height: 100px;
             }
             
             .color-tile {
@@ -69,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 height: 40px;
                 margin: 3px;
                 border-radius: 4px;
+                cursor: move; /* Fallback for older browsers */
                 cursor: grab;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
                 display: inline-block;
@@ -79,6 +81,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 -ms-user-select: none;
                 touch-action: none;
                 -webkit-touch-callout: none;
+                position: relative;
+            }
+            
+            /* Fixed positioning in landscape mode */
+            @media (orientation: landscape) {
+                .color-container {
+                    max-width: 90vw;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                }
+                
+                #score-display {
+                    position: fixed !important;
+                    top: 20px !important;
+                    right: 20px !important;
+                }
             }
             
             /* Fix for text selection during drag */
@@ -87,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 -webkit-user-select: none;
                 -moz-user-select: none;
                 -ms-user-select: none;
+                overflow-x: hidden;
             }
             
             .color-tile:hover {
@@ -168,6 +187,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ensure color tiles are visible with explicit styling and prevent text selection
     function setupTiles() {
         colorTiles.forEach(tile => {
+            // Force draggable attribute
+            tile.setAttribute('draggable', 'true');
+            
+            // Add specific drag handle class for touch
+            tile.classList.add('drag-handle');
+            
             // Enforce visibility and sizing
             tile.style.width = '40px';
             tile.style.height = '40px';
@@ -185,7 +210,32 @@ document.addEventListener('DOMContentLoaded', function() {
             tile.style.webkitTouchCallout = 'none';
             
             // Set cursor style
+            tile.style.cursor = 'move'; // Fallback
             tile.style.cursor = 'grab';
+            
+            // Add direct drag indicator
+            const dragIndicator = document.createElement('div');
+            dragIndicator.style.position = 'absolute';
+            dragIndicator.style.top = '50%';
+            dragIndicator.style.left = '50%';
+            dragIndicator.style.transform = 'translate(-50%, -50%)';
+            dragIndicator.style.opacity = '0.7';
+            dragIndicator.style.fontSize = '18px';
+            dragIndicator.style.display = 'none'; // Hidden by default
+            dragIndicator.innerHTML = '⇄';
+            dragIndicator.classList.add('drag-indicator');
+            
+            tile.addEventListener('mouseenter', () => {
+                if (!tile.classList.contains('locked-tile')) {
+                    dragIndicator.style.display = 'block';
+                }
+            });
+            
+            tile.addEventListener('mouseleave', () => {
+                dragIndicator.style.display = 'none';
+            });
+            
+            tile.appendChild(dragIndicator);
             
             // If no background color is set, give it a default
             if (!tile.style.backgroundColor) {
@@ -197,10 +247,41 @@ document.addEventListener('DOMContentLoaded', function() {
             // Ensure draggability
             tile.setAttribute('draggable', 'true');
         });
+        
+        // Output debug info
+        console.log('Tiles set up with draggable attribute:', 
+            Array.from(colorTiles).every(tile => tile.getAttribute('draggable') === 'true'));
     }
     
     // Call the setup function
     setupTiles();
+    
+    // For orientation changes
+    window.addEventListener('orientationchange', function() {
+        console.log('Orientation changed');
+        // Re-initialize the layout after orientation change
+        setTimeout(() => {
+            setupTiles();
+            adjustForOrientation();
+        }, 300);
+    });
+    
+    // Handle orientation adjustments
+    function adjustForOrientation() {
+        const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+        console.log('Adjusting for orientation:', isLandscape ? 'landscape' : 'portrait');
+        
+        if (isLandscape) {
+            // Adjust for landscape mode
+            colorContainer.style.maxWidth = '90vw';
+        } else {
+            // Reset for portrait mode
+            colorContainer.style.maxWidth = '800px';
+        }
+    }
+    
+    // Call initial orientation adjustment
+    adjustForOrientation();
     
     // Generate correct order based on tile data for scoring
     function initializeCorrectOrder() {
@@ -292,33 +373,125 @@ document.addEventListener('DOMContentLoaded', function() {
     // Allow the DOM to settle before locking end tiles
     setTimeout(lockEndTiles, 100);
     
-    // Initialize each tile with drag events
+    // Initialize each tile with enhanced drag events
     colorTiles.forEach(tile => {
         // Prevent default behaviors that might interfere with dragging
-        tile.addEventListener('mousedown', function(e) {
-            if (!this.classList.contains('locked-tile')) {
-                e.preventDefault();
-            }
+        ['mousedown', 'touchstart'].forEach(eventName => {
+            tile.addEventListener(eventName, function(e) {
+                if (!this.classList.contains('locked-tile')) {
+                    console.log(`${eventName} on tile`);
+                    e.preventDefault();
+                }
+            });
         });
         
-        // When drag starts
+        // When drag starts - enhanced handling
         tile.addEventListener('dragstart', function(e) {
             if (this.classList.contains('locked-tile')) {
                 e.preventDefault();
                 return;
             }
             
+            console.log('Drag started');
             this.classList.add('dragging');
-            // Set the drag image to a transparent pixel to hide the default ghost image
-            const img = new Image();
-            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            e.dataTransfer.setDragImage(img, 0, 0);
+            
+            // Use a better drag image that's visible
+            try {
+                // Create a clone of the tile for the drag image
+                const dragImage = this.cloneNode(true);
+                dragImage.style.opacity = '0.8';
+                dragImage.style.transform = 'scale(1.2)';
+                document.body.appendChild(dragImage);
+                
+                // Set it as the drag image, then remove it
+                e.dataTransfer.setDragImage(dragImage, 20, 20);
+                setTimeout(() => {
+                    document.body.removeChild(dragImage);
+                }, 0);
+            } catch (error) {
+                console.warn('Drag image failed, using default', error);
+                // Fallback to transparent image if clone fails
+                const img = new Image();
+                img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                e.dataTransfer.setDragImage(img, 0, 0);
+            }
+            
             e.dataTransfer.setData('text/plain', ''); // Required for Firefox
             e.dataTransfer.effectAllowed = 'move';
             
             setTimeout(() => {
                 this.style.opacity = '0.4';
             }, 0);
+        });
+        
+        // Mouse-based dragging (alternative to HTML5 drag)
+        let isDragging = false;
+        let startX, startY;
+        
+        tile.addEventListener('mousedown', function(e) {
+            if (this.classList.contains('locked-tile')) return;
+            
+            // Begin mouse drag
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            this.style.cursor = 'grabbing';
+            this.classList.add('dragging');
+            
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            
+            const currentTile = document.querySelector('.dragging');
+            if (!currentTile) {
+                isDragging = false;
+                return;
+            }
+            
+            e.preventDefault();
+            
+            // Move the element
+            currentTile.style.position = 'absolute';
+            currentTile.style.left = `${e.clientX - startX + currentTile.offsetLeft}px`;
+            currentTile.style.top = `${e.clientY - startY + currentTile.offsetTop}px`;
+            currentTile.style.zIndex = '1000';
+            
+            // Find position for insertion
+            const afterElement = getDragAfterElement(colorContainer, e.clientY, e.clientX);
+            if (afterElement) {
+                const lastElement = correctOrder[correctOrder.length - 1].element;
+                if (afterElement !== lastElement) {
+                    colorContainer.insertBefore(currentTile, afterElement);
+                }
+            } else {
+                const lastElement = correctOrder[correctOrder.length - 1].element;
+                if (lastElement.previousElementSibling !== currentTile) {
+                    colorContainer.insertBefore(currentTile, lastElement);
+                }
+            }
+            
+            // Update drag start positions
+            startX = e.clientX;
+            startY = e.clientY;
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (!isDragging) return;
+            
+            const currentTile = document.querySelector('.dragging');
+            if (currentTile) {
+                currentTile.style.position = '';
+                currentTile.style.left = '';
+                currentTile.style.top = '';
+                currentTile.style.zIndex = '';
+                currentTile.style.cursor = 'grab';
+                currentTile.classList.remove('dragging');
+                calculateScore();
+            }
+            
+            isDragging = false;
         });
         
         // When drag ends
@@ -328,13 +501,15 @@ document.addEventListener('DOMContentLoaded', function() {
             calculateScore();
         });
         
-        // Touch events for mobile support - enhanced for iPad
+        // Enhanced touch events for better iPad support in any orientation
         tile.addEventListener('touchstart', function(e) {
             if (this.classList.contains('locked-tile')) {
-                return; // Don't prevent default for locked tiles to allow scrolling
+                return; // Don't prevent default for locked tiles
             }
             
-            // Prevent default to stop text selection
+            console.log('Touch start on tile');
+            
+            // Prevent default to stop text selection and browser handling
             e.preventDefault();
             
             isTouchDevice = true;
@@ -354,8 +529,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Create a placeholder to maintain layout during dragging
             createPlaceholder(this);
-            
-            e.preventDefault(); // Prevent scrolling only for draggable tiles
         }, { passive: false });
         
         tile.addEventListener('touchmove', function(e) {
@@ -367,14 +540,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const touch = e.touches[0];
             const containerRect = colorContainer.getBoundingClientRect();
             
+            // Adjust for orientation and scroll
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            
             // Position the tile absolutely for dragging
             this.style.position = 'absolute';
-            this.style.left = `${touch.clientX - dragStartX + initialX - containerRect.left}px`;
-            this.style.top = `${touch.clientY - dragStartY + initialY - containerRect.top}px`;
+            this.style.left = `${touch.clientX - dragStartX + initialX - containerRect.left + scrollX}px`;
+            this.style.top = `${touch.clientY - dragStartY + initialY - containerRect.top + scrollY}px`;
             this.style.zIndex = '1000'; // Ensure dragged tile is on top
             
-            // Find the drop position
-            const afterElement = getDragAfterElement(colorContainer, touch.clientY, touch.clientX);
+            // Find the drop position with an expanded hitbox
+            const hitboxSize = 30; // Larger hitbox for easier touch targeting
+            const afterElement = getDragAfterElement(
+                colorContainer, 
+                touch.clientY, 
+                touch.clientX,
+                hitboxSize
+            );
             
             if (afterElement) {
                 // Don't position after the last locked tile
@@ -471,6 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle the dragover event to determine drop position
     colorContainer.addEventListener('dragover', function(e) {
         e.preventDefault();
+        console.log('Drag over container');
+        
         const draggingTile = document.querySelector('.dragging');
         if (!draggingTile || draggingTile.classList.contains('locked-tile')) return;
         
@@ -491,8 +676,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Determine where to place the dragged element
-    function getDragAfterElement(container, y, x) {
+    // Also handle drop event explicitly
+    colorContainer.addEventListener('drop', function(e) {
+        e.preventDefault();
+        console.log('Drop event on container');
+        
+        const draggingTile = document.querySelector('.dragging');
+        if (draggingTile) {
+            draggingTile.classList.remove('dragging');
+            draggingTile.style.opacity = '1';
+            calculateScore();
+        }
+    });
+    
+    // Determine where to place the dragged element with improved hitbox
+    function getDragAfterElement(container, y, x, hitboxSize = 0) {
         // Don't consider locked tiles when calculating position
         const draggableElements = [...container.querySelectorAll('.color-tile:not(.dragging):not(.locked-tile), .placeholder')];
         
@@ -505,15 +703,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
             
+            // Add hitbox expansion for easier touch targeting
+            const expandedBox = {
+                top: box.top - hitboxSize,
+                left: box.left - hitboxSize,
+                bottom: box.bottom + hitboxSize,
+                right: box.right + hitboxSize,
+                width: box.width + hitboxSize * 2,
+                height: box.height + hitboxSize * 2
+            };
+            
             // Use center point of the element
             const offsetY = y - (box.top + box.height / 2);
-            
-            // For horizontal sorting, prioritize X position
             const offsetX = x - (box.left + box.width / 2);
             
             // If we're in the same row (Y is close), use X to determine position
             // Otherwise use Y to determine position
-            const yThreshold = box.height * 0.7;
+            const yThreshold = box.height;
             
             if (Math.abs(offsetY) < yThreshold) {
                 // Same row, use X distance
@@ -621,6 +827,85 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add reset button
     setTimeout(addResetButton, 200);
     
+    // Add debug overlay button
+    function addDebugButton() {
+        const debugBtn = document.createElement('button');
+        debugBtn.id = 'debug-test';
+        debugBtn.textContent = 'Toggle Debug Mode';
+        debugBtn.style.display = 'block';
+        debugBtn.style.margin = '10px auto';
+        debugBtn.style.padding = '5px 10px';
+        debugBtn.style.backgroundColor = '#999';
+        debugBtn.style.color = 'white';
+        debugBtn.style.border = 'none';
+        debugBtn.style.borderRadius = '4px';
+        debugBtn.style.cursor = 'pointer';
+        debugBtn.style.fontFamily = 'Arial, sans-serif';
+        debugBtn.style.fontSize = '12px';
+        
+        let debugMode = false;
+        
+        debugBtn.addEventListener('click', function() {
+            debugMode = !debugMode;
+            
+            if (debugMode) {
+                debugBtn.textContent = 'Disable Debug Mode';
+                // Add diagnostic information
+                colorTiles.forEach(tile => {
+                    const debugInfo = document.createElement('span');
+                    debugInfo.classList.add('debug-info');
+                    debugInfo.textContent = tile.getAttribute('data-position');
+                    debugInfo.style.position = 'absolute';
+                    debugInfo.style.top = '0';
+                    debugInfo.style.left = '0';
+                    debugInfo.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                    debugInfo.style.color = 'white';
+                    debugInfo.style.fontSize = '10px';
+                    debugInfo.style.padding = '2px';
+                    debugInfo.style.borderRadius = '2px';
+                    tile.appendChild(debugInfo);
+                    
+                    // Highlight draggable status
+                    tile.style.border = tile.getAttribute('draggable') === 'true' ? 
+                        '2px solid green' : '2px solid red';
+                });
+                
+                // Add container debug info
+                const debugContainer = document.createElement('div');
+                debugContainer.classList.add('debug-container-info');
+                debugContainer.innerHTML = `
+                    <div style="position:fixed;left:10px;bottom:10px;background:rgba(0,0,0,0.7);color:white;
+                                padding:10px;z-index:9999;font-size:12px;border-radius:4px;">
+                        <p>Tiles: ${colorTiles.length} | Draggable: ${document.querySelectorAll('[draggable="true"]').length}</p>
+                        <p>Container: ${colorContainer.offsetWidth}x${colorContainer.offsetHeight}</p>
+                        <p>Orientation: ${window.matchMedia("(orientation: landscape)").matches ? 'Landscape' : 'Portrait'}</p>
+                    </div>
+                `;
+                document.body.appendChild(debugContainer);
+                
+            } else {
+                debugBtn.textContent = 'Toggle Debug Mode';
+                // Remove diagnostic information
+                document.querySelectorAll('.debug-info').forEach(el => el.remove());
+                document.querySelectorAll('.debug-container-info').forEach(el => el.remove());
+                colorTiles.forEach(tile => {
+                    tile.style.border = ''; 
+                });
+            }
+        });
+        
+        // Add after reset button
+        const resetBtn = document.getElementById('reset-test');
+        if (resetBtn) {
+            resetBtn.parentNode.insertBefore(debugBtn, resetBtn.nextSibling);
+        } else {
+            document.body.insertBefore(debugBtn, colorContainer.nextSibling);
+        }
+    }
+    
+    // Add debug button (only in development)
+    setTimeout(addDebugButton, 300);
+    
     // Calculate initial score after tiles are positioned
     setTimeout(calculateScore, 1000);
     
@@ -633,23 +918,60 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('Using sample tiles because no existing tiles were found');
     }
     
-    // Add initialization for better iPad support
+    // Enhanced initialization for better iPad support
     function initializeIPadSupport() {
         // Add meta tag to prevent unwanted behaviors
         let meta = document.createElement('meta');
         meta.name = 'viewport';
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
         document.head.appendChild(meta);
         
-        // Prevent default touch actions on the container
-        colorContainer.addEventListener('touchmove', function(e) {
-            if (draggedTile) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        // Add meta for orientation support
+        let orientationMeta = document.createElement('meta');
+        orientationMeta.name = 'orientation';
+        orientationMeta.content = 'portrait, landscape';
+        document.head.appendChild(orientationMeta);
+        
+        // Prevent default touch actions on the container and document
+        [colorContainer, document.body].forEach(el => {
+            el.addEventListener('touchmove', function(e) {
+                if (draggedTile) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+        });
         
         // Prevent Safari's callout feature
         document.body.style.webkitTouchCallout = 'none';
+        
+        // Add CSS for iOS Safari specific fixes
+        const iosFixes = document.createElement('style');
+        iosFixes.textContent = `
+            /* iOS Safari specific fixes */
+            @supports (-webkit-touch-callout: none) {
+                .color-tile {
+                    /* Prevent gray flash when tapping */
+                    -webkit-tap-highlight-color: transparent;
+                }
+                
+                /* Fix for landscape mode */
+                @media (orientation: landscape) {
+                    .color-container {
+                        padding-bottom: 60px; /* Add padding for iOS home indicator */
+                    }
+                }
+            }
+        `;
+        document.head.appendChild(iosFixes);
+        
+        // Ensure draggable works even after DOM changes
+        setInterval(() => {
+            colorTiles.forEach(tile => {
+                if (!tile.classList.contains('locked-tile') && tile.getAttribute('draggable') !== 'true') {
+                    tile.setAttribute('draggable', 'true');
+                }
+            });
+        }, 1000);
     }
     
     // Initialize iPad support
