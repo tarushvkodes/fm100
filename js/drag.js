@@ -82,32 +82,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 touch-action: none;
                 -webkit-touch-callout: none;
                 position: relative;
+                z-index: 1;
             }
             
             /* Fixed positioning in landscape mode */
             @media (orientation: landscape) {
                 .color-container {
-                    max-width: 90vw;
-                    max-height: 80vh;
-                    overflow-y: auto;
-                    display: flex;
-                    flex-wrap: wrap;
+                    max-width: 100vw;
+                    height: auto;
+                    min-height: 80vh;
+                    overflow-y: visible;
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, 46px);
+                    gap: 3px;
                     justify-content: center;
-                    align-content: flex-start;
-                    padding-bottom: 80px; /* More space for iOS home indicator */
+                    align-content: start;
+                    padding: 20px;
+                    padding-bottom: 100px;
                 }
                 
                 .color-tile {
-                    /* Ensure tiles are visible */
-                    display: inline-block !important;
+                    position: relative !important;
+                    display: block !important;
                     opacity: 1 !important;
                     visibility: visible !important;
+                    margin: 0;
+                    transform-origin: center center;
                 }
                 
-                #score-display {
-                    position: fixed !important;
-                    top: 20px !important;
-                    right: 20px !important;
+                .dragging {
+                    position: absolute !important;
                 }
             }
             
