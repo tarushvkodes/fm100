@@ -73,7 +73,7 @@ button:disabled {
     justify-content: center;
     margin-bottom: 30px;
     position: relative;
-    height: 80px;
+    height: 100px;  /* Increased to accommodate square tiles */
 }
 
 .fixed-cap {
@@ -98,13 +98,13 @@ button:disabled {
     padding: 10px;
     background-color: #eee;
     border-radius: 5px;
-    min-height: 80px;
+    min-height: 100px;  /* Increased to accommodate square tiles */
     flex: 1;
 }
 
 .color-tile {
-    width: 40px;
-    height: 60px;
+    width: 60px;  /* Changed from 40px to 60px */
+    height: 60px;  /* Kept the same to make it square */
     border-radius: 5px;
     cursor: grab;
     transition: transform 0.2s ease;
@@ -155,7 +155,7 @@ footer {
     }
     
     .color-tile {
-        width: 30px;
-        height: 45px;
+        width: 40px;  /* Changed to make it square */
+        height: 40px;  /* Changed to match width */
     }
 }
