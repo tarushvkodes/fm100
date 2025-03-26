@@ -113,7 +113,7 @@ button:disabled {
 
 .color-container {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* Allow wrapping to multiple rows */
     gap: 10px;
     padding: 20px;
     background-color: #f7f7f7;
@@ -126,8 +126,8 @@ button:disabled {
 }
 
 .color-tile {
-    width: 55px;
-    height: 55px;
+    width: calc(10% - 10px); /* Adjust width to fit multiple tiles per row */
+    height: calc(10% - 10px); /* Maintain square shape */
     border-radius: 12px;
     cursor: grab;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
