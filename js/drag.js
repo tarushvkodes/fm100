@@ -2,21 +2,173 @@ document.addEventListener('DOMContentLoaded', function() {
     const colorContainer = document.querySelector('.color-container');
     const colorTiles = document.querySelectorAll('.color-tile');
     
+    // Exit if no tiles are found
+    if (colorTiles.length === 0) {
+        console.error('No color tiles found! Creating sample tiles for testing...');
+        createSampleTiles();
+    }
+    
+    // Convert container to X-Rite style
+    styleContainerAsXrite();
+    
     let draggedTile = null;
     let dragStartX, dragStartY;
     let initialX, initialY;
     let isTouchDevice = false;
     let correctOrder = [];
     
+    // Create 100 sample tiles (only if none exist)
+    function createSampleTiles() {
+        colorContainer.innerHTML = ''; // Clear container
+        
+        // Create color gradient with 100 steps (including first and last)
+        const totalTiles = 100;
+        
+        for (let i = 0; i < totalTiles; i++) {
+            const tile = document.createElement('div');
+            tile.classList.add('color-tile');
+            tile.setAttribute('data-position', i);
+            
+            // Create a color gradient (simplified version of FM100)
+            // This creates a full hue circle in HSL color space
+            const hue = Math.floor((i / totalTiles) * 360);
+            const saturation = 100;
+            const lightness = 50;
+            
+            tile.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+            colorContainer.appendChild(tile);
+        }
+        
+        // Refresh the colorTiles NodeList
+        return document.querySelectorAll('.color-tile');
+    }
+    
+    // Style container to look like X-Rite test
+    function styleContainerAsXrite() {
+        // Add X-Rite styling
+        const xriteStyle = document.createElement('style');
+        xriteStyle.textContent = `
+            .color-container {
+                display: flex;
+                flex-wrap: wrap;
+                width: 100%;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                border-radius: 8px;
+                background-color: #f0f0f0;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            }
+            
+            .color-tile {
+                width: 40px;
+                height: 40px;
+                margin: 3px;
+                border-radius: 4px;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                display: inline-block;
+                transition: transform 0.1s;
+            }
+            
+            .color-tile:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            }
+            
+            .locked-tile {
+                border: 3px solid #FFD700 !important;
+                box-shadow: 0 0 8px #FFD700;
+                position: relative !important;
+                z-index: 5 !important;
+            }
+            
+            .placeholder {
+                background-color: #ddd !important;
+                border: 2px dashed #999;
+                box-shadow: none;
+                opacity: 0.7;
+                width: 40px;
+                height: 40px;
+                margin: 3px;
+                border-radius: 4px;
+                display: inline-block;
+            }
+            
+            #score-display {
+                background-color: #333 !important;
+                color: white;
+                padding: 15px;
+                border-radius: 8px;
+                font-family: 'Arial', sans-serif;
+                font-size: 18px;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+                text-align: center;
+            }
+            
+            .dragging {
+                opacity: 0.8;
+                transform: scale(1.1);
+                z-index: 1000;
+            }
+            
+            /* X-Rite style title */
+            .test-title {
+                font-family: 'Arial', sans-serif;
+                text-align: center;
+                font-weight: bold;
+                margin-bottom: 20px;
+                color: #333;
+            }
+            
+            /* Instructions */
+            .test-instructions {
+                font-family: 'Arial', sans-serif;
+                text-align: center;
+                margin-bottom: 20px;
+                color: #555;
+                padding: 0 40px;
+            }
+        `;
+        document.head.appendChild(xriteStyle);
+        
+        // Add title and instructions like X-Rite
+        if (!document.querySelector('.test-title')) {
+            const title = document.createElement('h1');
+            title.classList.add('test-title');
+            title.textContent = "Farnsworth-Munsell 100 Hue Test";
+            document.body.insertBefore(title, colorContainer);
+            
+            const instructions = document.createElement('p');
+            instructions.classList.add('test-instructions');
+            instructions.textContent = "Arrange the color tiles in order of hue from left to right. The first and last tiles are fixed in place.";
+            document.body.insertBefore(instructions, colorContainer);
+        }
+    }
+    
     // Ensure color tiles are visible with explicit styling
     colorTiles.forEach(tile => {
+        // Enforce visibility and sizing
+        tile.style.width = '40px';
+        tile.style.height = '40px';
         tile.style.display = 'inline-block';
         tile.style.visibility = 'visible';
-        tile.style.margin = '2px';
+        tile.style.margin = '3px';
+        tile.style.borderRadius = '4px';
+        
+        // If no background color is set, give it a default
+        if (!tile.style.backgroundColor) {
+            const index = Array.from(colorTiles).indexOf(tile);
+            const hue = Math.floor((index / colorTiles.length) * 360);
+            tile.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+        }
     });
     
     // Generate correct order based on tile data for scoring
     function initializeCorrectOrder() {
+        // Clear previous order
+        correctOrder = [];
+        
         // Extract tiles and their color values
         const tiles = [...colorTiles];
         
@@ -35,8 +187,45 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Sort by correct position
         correctOrder.sort((a, b) => a.position - b.position);
+        
+        // Randomize tiles except first and last
+        scrambleTiles();
     }
     
+    // Scramble the tiles for the test, keeping first and last in place
+    function scrambleTiles() {
+        const allTiles = Array.from(colorTiles);
+        const firstTile = correctOrder[0].element;
+        const lastTile = correctOrder[correctOrder.length - 1].element;
+        
+        // Remove fixed tiles from array
+        const tilesForScrambling = allTiles.filter(
+            tile => tile !== firstTile && tile !== lastTile
+        );
+        
+        // Fisher-Yates shuffle
+        for (let i = tilesForScrambling.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tilesForScrambling[i], tilesForScrambling[j]] = 
+            [tilesForScrambling[j], tilesForScrambling[i]];
+        }
+        
+        // Clear container
+        colorContainer.innerHTML = '';
+        
+        // Add first tile
+        colorContainer.appendChild(firstTile);
+        
+        // Add scrambled tiles
+        tilesForScrambling.forEach(tile => {
+            colorContainer.appendChild(tile);
+        });
+        
+        // Add last tile
+        colorContainer.appendChild(lastTile);
+    }
+    
+    // Initialize correct order
     initializeCorrectOrder();
     
     // Lock first and last tiles to their correct positions in the grid
@@ -52,19 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
         firstTile.setAttribute('draggable', false);
         lastTile.setAttribute('draggable', false);
         
-        // Remove these tiles from their current positions
-        if (firstTile.parentNode) {
-            firstTile.parentNode.removeChild(firstTile);
-        }
-        if (lastTile.parentNode) {
-            lastTile.parentNode.removeChild(lastTile);
+        // Make sure they're at the start and end
+        if (colorContainer.firstChild !== firstTile) {
+            colorContainer.insertBefore(firstTile, colorContainer.firstChild);
         }
         
-        // Insert the first tile at the beginning of the container
-        colorContainer.insertBefore(firstTile, colorContainer.firstChild);
-        
-        // Append the last tile at the end of the container
-        colorContainer.appendChild(lastTile);
+        if (colorContainer.lastChild !== lastTile) {
+            colorContainer.appendChild(lastTile);
+        }
     }
     
     // Allow the DOM to settle before locking end tiles
@@ -102,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isTouchDevice = true;
             draggedTile = this;
             this.classList.add('dragging');
-            this.style.opacity = '0.4';
+            this.style.opacity = '0.8';
             
             const touch = e.touches[0];
             dragStartX = touch.clientX;
@@ -284,7 +468,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateScore() {
         const currentOrder = Array.from(colorContainer.querySelectorAll('.color-tile'));
         let totalError = 0;
-        let maxError = correctOrder.length - 1; // Maximum possible error is n-1 positions
         
         // Calculate Total Inversions (TI) - standard method used in FM100 and D15 tests
         for (let i = 0; i < currentOrder.length; i++) {
@@ -306,19 +489,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate score as percentage of correctness (0-100)
         const score = Math.round(100 * (1 - (totalError / maxInversions)));
         
-        // Display or store the score
+        // X-Rite style score display
         if (document.getElementById('score-display')) {
-            document.getElementById('score-display').textContent = `Score: ${score}`;
+            document.getElementById('score-display').innerHTML = `
+                <strong>Your Score: ${score}</strong><br>
+                <span style="font-size: 14px;">
+                    ${getScoreMessage(score)}
+                </span>
+            `;
         } else {
             const scoreDisplay = document.createElement('div');
             scoreDisplay.id = 'score-display';
-            scoreDisplay.textContent = `Score: ${score}`;
+            scoreDisplay.innerHTML = `
+                <strong>Your Score: ${score}</strong><br>
+                <span style="font-size: 14px;">
+                    ${getScoreMessage(score)}
+                </span>
+            `;
             scoreDisplay.style.position = 'fixed';
-            scoreDisplay.style.top = '10px';
-            scoreDisplay.style.right = '10px';
-            scoreDisplay.style.padding = '10px';
-            scoreDisplay.style.background = '#fff';
-            scoreDisplay.style.border = '1px solid #ccc';
+            scoreDisplay.style.top = '20px';
+            scoreDisplay.style.right = '20px';
+            scoreDisplay.style.padding = '15px';
             scoreDisplay.style.zIndex = '1000';
             document.body.appendChild(scoreDisplay);
         }
@@ -326,62 +517,54 @@ document.addEventListener('DOMContentLoaded', function() {
         return score;
     }
     
-    // Add CSS to ensure tiles stay in container and show locked tiles
-    const style = document.createElement('style');
-    style.textContent = `
-        .color-container {
-            position: relative;
-            display: flex;
-            flex-wrap: wrap;
-            min-height: 50px;
-            width: 100%;
-        }
-        .color-tile {
-            display: inline-block;
-            position: relative;
-            touch-action: none;
-            z-index: 1;
-            box-sizing: border-box;
-        }
-        .locked-tile {
-            border: 2px solid gold !important;
-            position: relative !important;
-            z-index: 5 !important;
-        }
-        .placeholder {
-            margin: 2px;
-            box-sizing: border-box;
-        }
-        #score-display {
-            font-weight: bold;
-            font-family: Arial, sans-serif;
-            background-color: rgba(255, 255, 255, 0.9) !important;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
+    // Provide score interpretation like X-Rite
+    function getScoreMessage(score) {
+        if (score >= 95) return "Superior color vision";
+        if (score >= 90) return "Normal color vision";
+        if (score >= 70) return "Slight color vision deficiency";
+        if (score >= 50) return "Moderate color vision deficiency";
+        return "Significant color vision deficiency";
+    }
+    
+    // Add reset button like X-Rite
+    function addResetButton() {
+        const resetBtn = document.createElement('button');
+        resetBtn.id = 'reset-test';
+        resetBtn.textContent = 'Reset Test';
+        resetBtn.style.display = 'block';
+        resetBtn.style.margin = '20px auto';
+        resetBtn.style.padding = '10px 20px';
+        resetBtn.style.backgroundColor = '#333';
+        resetBtn.style.color = 'white';
+        resetBtn.style.border = 'none';
+        resetBtn.style.borderRadius = '4px';
+        resetBtn.style.cursor = 'pointer';
+        resetBtn.style.fontFamily = 'Arial, sans-serif';
         
-        /* Ensure iPad touch compatibility */
-        html, body {
-            -webkit-overflow-scrolling: touch;
-        }
+        resetBtn.addEventListener('click', function() {
+            scrambleTiles();
+            lockEndTiles();
+            calculateScore();
+        });
         
-        /* Debugging visibility */
-        .color-tile {
-            opacity: 1 !important;
-            visibility: visible !important;
+        // Add after container
+        if (!document.getElementById('reset-test')) {
+            document.body.insertBefore(resetBtn, colorContainer.nextSibling);
         }
-    `;
-    document.head.appendChild(style);
+    }
+    
+    // Add reset button
+    setTimeout(addResetButton, 200);
     
     // Calculate initial score after tiles are positioned
     setTimeout(calculateScore, 1000);
     
-    // Diagnostic information
+    // Log diagnostic information
     console.log(`Color tiles found: ${colorTiles.length}`);
     console.log(`Container dimensions: ${colorContainer.offsetWidth}x${colorContainer.offsetHeight}`);
     
-    // Set container height explicitly if needed
-    if (colorContainer.offsetHeight < 50) {
-        colorContainer.style.minHeight = '100px';
+    // Alert if no tiles were found initially
+    if (colorTiles.length === 0) {
+        console.warn('Using sample tiles because no existing tiles were found');
     }
 });
