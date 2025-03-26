@@ -1,0 +1,161 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.test-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.timer {
+    font-size: 1.2rem;
+    font-weight: bold;
+    background-color: #f1f1f1;
+    padding: 10px 15px;
+    border-radius: 5px;
+}
+
+.test-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 30px;
+    position: relative;
+    height: 80px;
+}
+
+.fixed-cap {
+    width: 60px;
+    height: 60px;
+    border-radius: 5px;
+}
+
+.left-cap {
+    background-color: #ff0000; /* Starting color */
+}
+
+.right-cap {
+    background-color: #9a0000; /* Ending color */
+}
+
+.color-container {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 5px;
+    padding: 10px;
+    background-color: #eee;
+    border-radius: 5px;
+    min-height: 80px;
+    flex: 1;
+}
+
+.color-tile {
+    width: 40px;
+    height: 60px;
+    border-radius: 5px;
+    cursor: grab;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.color-tile:hover {
+    transform: translateY(-5px);
+}
+
+.color-tile.dragging {
+    opacity: 0.7;
+    cursor: grabbing;
+}
+
+.results-container {
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+#score {
+    font-size: 1.5rem;
+    margin: 20px 0;
+}
+
+#chart {
+    height: 300px;
+    margin: 20px 0;
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .test-controls {
+        flex-direction: column;
+    }
+    
+    .color-tile {
+        width: 30px;
+        height: 45px;
+    }
+}

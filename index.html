@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FM100 Color Test</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Farnsworth-Munsell 100 Hue Test</h1>
+            <p>Arrange the colors in a smooth gradient from left to right. Drag and drop to reorder.</p>
+        </header>
+        
+        <div class="test-controls">
+            <button id="startTest">Start Test</button>
+            <button id="submitTest" disabled>Submit Results</button>
+            <div class="timer" id="timer">Time: 00:00</div>
+        </div>
+        
+        <div class="test-container">
+            <div class="fixed-cap left-cap"></div>
+            <div id="colorContainer" class="color-container"></div>
+            <div class="fixed-cap right-cap"></div>
+        </div>
+        
+        <div id="results" class="results-container hidden">
+            <h2>Your Results</h2>
+            <div id="score"></div>
+            <div id="chart"></div>
+            <button id="retakeTest">Retake Test</button>
+        </div>
+        
+        <footer>
+            <p>This is a simulation of the Farnsworth-Munsell 100 Hue Test for educational purposes only.</p>
+        </footer>
+    </div>
+    
+    <script src="js/colors.js"></script>
+    <script src="js/fm100.js"></script>
+</body>
+</html>
