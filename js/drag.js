@@ -90,6 +90,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     max-width: 90vw;
                     max-height: 80vh;
                     overflow-y: auto;
+                    display: flex;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    align-content: flex-start;
+                    padding-bottom: 80px; /* More space for iOS home indicator */
+                }
+                
+                .color-tile {
+                    /* Ensure tiles are visible */
+                    display: inline-block !important;
+                    opacity: 1 !important;
+                    visibility: visible !important;
                 }
                 
                 #score-display {
@@ -274,10 +286,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isLandscape) {
             // Adjust for landscape mode
             colorContainer.style.maxWidth = '90vw';
+            colorContainer.style.display = 'flex';
+            colorContainer.style.flexWrap = 'wrap';
+            colorContainer.style.justifyContent = 'center';
+            
+            // Force refresh tiles
+            colorTiles.forEach(tile => {
+                tile.style.display = 'inline-block';
+                tile.style.visibility = 'visible';
+                tile.style.opacity = '1';
+            });
         } else {
             // Reset for portrait mode
             colorContainer.style.maxWidth = '800px';
         }
+        
+        // Force layout recalculation
+        colorContainer.offsetHeight; // Trigger reflow
     }
     
     // Call initial orientation adjustment
