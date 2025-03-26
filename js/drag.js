@@ -8,6 +8,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let isTouchDevice = false;
     let correctOrder = [];
     
+    // Ensure color tiles are visible with explicit styling
+    colorTiles.forEach(tile => {
+        tile.style.display = 'inline-block';
+        tile.style.visibility = 'visible';
+        tile.style.margin = '2px';
+    });
+    
     // Generate correct order based on tile data for scoring
     function initializeCorrectOrder() {
         // Extract tiles and their color values
@@ -32,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     initializeCorrectOrder();
     
-    // Lock first and last tiles to their correct positions
+    // Lock first and last tiles to their correct positions in the grid
     function lockEndTiles() {
         const firstTile = correctOrder[0].element;
         const lastTile = correctOrder[correctOrder.length - 1].element;
@@ -45,20 +52,26 @@ document.addEventListener('DOMContentLoaded', function() {
         firstTile.setAttribute('draggable', false);
         lastTile.setAttribute('draggable', false);
         
-        // Move them to start and end positions
+        // Remove these tiles from their current positions
+        if (firstTile.parentNode) {
+            firstTile.parentNode.removeChild(firstTile);
+        }
+        if (lastTile.parentNode) {
+            lastTile.parentNode.removeChild(lastTile);
+        }
+        
+        // Insert the first tile at the beginning of the container
         colorContainer.insertBefore(firstTile, colorContainer.firstChild);
+        
+        // Append the last tile at the end of the container
         colorContainer.appendChild(lastTile);
     }
     
-    lockEndTiles();
+    // Allow the DOM to settle before locking end tiles
+    setTimeout(lockEndTiles, 100);
     
     // Initialize each tile with drag events
     colorTiles.forEach(tile => {
-        // Skip locked tiles
-        if (tile.classList.contains('locked-tile')) return;
-        
-        tile.setAttribute('draggable', true);
-        
         // When drag starts
         tile.addEventListener('dragstart', function(e) {
             if (this.classList.contains('locked-tile')) {
@@ -80,11 +93,10 @@ document.addEventListener('DOMContentLoaded', function() {
             calculateScore();
         });
         
-        // Touch events for mobile support - improved for iPad
+        // Touch events for mobile support - enhanced for iPad
         tile.addEventListener('touchstart', function(e) {
             if (this.classList.contains('locked-tile')) {
-                e.preventDefault();
-                return;
+                return; // Don't prevent default for locked tiles to allow scrolling
             }
             
             isTouchDevice = true;
@@ -101,61 +113,57 @@ document.addEventListener('DOMContentLoaded', function() {
             initialX = rect.left;
             initialY = rect.top;
             
-            // Prevent scrolling while dragging
-            e.preventDefault();
+            // Create a placeholder to maintain layout during dragging
+            createPlaceholder(this);
+            
+            e.preventDefault(); // Prevent scrolling only for draggable tiles
         }, { passive: false });
         
         tile.addEventListener('touchmove', function(e) {
             if (!draggedTile || this.classList.contains('locked-tile')) return;
             
             const touch = e.touches[0];
-            const offsetX = touch.clientX - dragStartX;
-            const offsetY = touch.clientY - dragStartY;
-            
-            // Get container boundaries
             const containerRect = colorContainer.getBoundingClientRect();
             
-            // Calculate new position
-            let newX = initialX + offsetX;
-            let newY = initialY + offsetY;
-            
-            // Apply bounds checking
-            const tileRect = this.getBoundingClientRect();
-            if (newX < containerRect.left) newX = containerRect.left;
-            if (newY < containerRect.top) newY = containerRect.top;
-            if (newX + tileRect.width > containerRect.right) newX = containerRect.right - tileRect.width;
-            if (newY + tileRect.height > containerRect.bottom) newY = containerRect.bottom - tileRect.height;
-            
-            // Position the tile
+            // Position the tile absolutely for dragging
             this.style.position = 'absolute';
-            this.style.left = `${newX - containerRect.left}px`;
-            this.style.top = `${newY - containerRect.top}px`;
+            this.style.left = `${touch.clientX - dragStartX + initialX - containerRect.left}px`;
+            this.style.top = `${touch.clientY - dragStartY + initialY - containerRect.top}px`;
             this.style.zIndex = '1000'; // Ensure dragged tile is on top
             
             // Find the drop position
             const afterElement = getDragAfterElement(colorContainer, touch.clientY, touch.clientX);
             
-            // Don't allow insertion before first tile or after last tile
             if (afterElement) {
-                if (afterElement !== correctOrder[correctOrder.length - 1].element) {
-                    colorContainer.insertBefore(draggedTile, afterElement);
+                // Don't position after the last locked tile
+                const lastElement = correctOrder[correctOrder.length - 1].element;
+                if (afterElement !== lastElement) {
+                    const placeholder = document.querySelector('.placeholder');
+                    if (placeholder) {
+                        colorContainer.insertBefore(placeholder, afterElement);
+                    }
                 }
             } else {
                 // Don't append if it would make it come after the last tile
                 const lastElement = correctOrder[correctOrder.length - 1].element;
-                const lastElementIndex = Array.from(colorContainer.children).indexOf(lastElement);
-                const draggedIndex = Array.from(colorContainer.children).indexOf(draggedTile);
-                
-                if (draggedIndex < lastElementIndex) {
-                    colorContainer.insertBefore(draggedTile, lastElement);
+                const placeholder = document.querySelector('.placeholder');
+                if (placeholder && lastElement && lastElement.previousElementSibling !== placeholder) {
+                    colorContainer.insertBefore(placeholder, lastElement);
                 }
             }
             
-            e.preventDefault(); // Prevent scrolling while dragging
+            e.preventDefault(); // Prevent scrolling during drag
         }, { passive: false });
         
         tile.addEventListener('touchend', function(e) {
             if (!draggedTile || this.classList.contains('locked-tile')) return;
+            
+            // Replace placeholder with actual tile
+            const placeholder = document.querySelector('.placeholder');
+            if (placeholder) {
+                colorContainer.insertBefore(this, placeholder);
+                colorContainer.removeChild(placeholder);
+            }
             
             // Reset styles
             this.classList.remove('dragging');
@@ -177,6 +185,12 @@ document.addEventListener('DOMContentLoaded', function() {
         tile.addEventListener('touchcancel', function(e) {
             if (!draggedTile) return;
             
+            // Remove placeholder
+            const placeholder = document.querySelector('.placeholder');
+            if (placeholder) {
+                colorContainer.removeChild(placeholder);
+            }
+            
             // Reset styles
             this.classList.remove('dragging');
             this.style.opacity = '1';
@@ -186,10 +200,24 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.zIndex = '';
             
             draggedTile = null;
-            
-            e.preventDefault();
         }, { passive: false });
     });
+    
+    // Create a placeholder element to maintain layout during dragging
+    function createPlaceholder(element) {
+        const placeholder = document.createElement('div');
+        placeholder.classList.add('placeholder');
+        
+        // Match the dimensions of the dragged element
+        placeholder.style.width = `${element.offsetWidth}px`;
+        placeholder.style.height = `${element.offsetHeight}px`;
+        placeholder.style.display = 'inline-block';
+        placeholder.style.background = '#f0f0f0';
+        placeholder.style.border = '1px dashed #ccc';
+        
+        // Insert placeholder where the element was
+        element.parentNode.insertBefore(placeholder, element);
+    }
     
     // Handle the dragover event to determine drop position
     colorContainer.addEventListener('dragover', function(e) {
@@ -199,18 +227,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const afterElement = getDragAfterElement(colorContainer, e.clientY, e.clientX);
         
-        // Don't allow insertion before first tile or after last tile
         if (afterElement) {
-            if (afterElement !== correctOrder[correctOrder.length - 1].element) {
+            // Don't position after the last locked tile
+            const lastElement = correctOrder[correctOrder.length - 1].element;
+            if (afterElement !== lastElement) {
                 colorContainer.insertBefore(draggingTile, afterElement);
             }
         } else {
             // Don't append if it would make it come after the last tile
             const lastElement = correctOrder[correctOrder.length - 1].element;
-            const lastElementIndex = Array.from(colorContainer.children).indexOf(lastElement);
-            const draggedIndex = Array.from(colorContainer.children).indexOf(draggingTile);
-            
-            if (draggedIndex < lastElementIndex) {
+            if (lastElement.previousElementSibling !== draggingTile) {
                 colorContainer.insertBefore(draggingTile, lastElement);
             }
         }
@@ -219,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Determine where to place the dragged element
     function getDragAfterElement(container, y, x) {
         // Don't consider locked tiles when calculating position
-        const draggableElements = [...container.querySelectorAll('.color-tile:not(.dragging):not(.locked-tile)')];
+        const draggableElements = [...container.querySelectorAll('.color-tile:not(.dragging):not(.locked-tile), .placeholder')];
         
         // Add first tile to ensure we can't place before it
         const firstElement = correctOrder[0].element;
@@ -229,20 +255,29 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return draggableElements.reduce((closest, child) => {
             const box = child.getBoundingClientRect();
-            const offset = {
-                y: y - box.top - box.height / 2,
-                x: x - box.left - box.width / 2
-            };
             
-            // Calculate distance using both X and Y coordinates
-            const distance = Math.sqrt(offset.y * offset.y + offset.x * offset.x);
+            // Use center point of the element
+            const offsetY = y - (box.top + box.height / 2);
             
-            if (distance < closest.distance) {
-                return { element: child, distance: distance };
-            } else {
-                return closest;
+            // For horizontal sorting, prioritize X position
+            const offsetX = x - (box.left + box.width / 2);
+            
+            // If we're in the same row (Y is close), use X to determine position
+            // Otherwise use Y to determine position
+            const yThreshold = box.height * 0.7;
+            
+            if (Math.abs(offsetY) < yThreshold) {
+                // Same row, use X distance
+                if (offsetX < 0 && offsetX > closest.offset) {
+                    return { offset: offsetX, element: child };
+                }
+            } else if (offsetY < 0 && offsetY > closest.offset) {
+                // Different row, use Y distance
+                return { offset: offsetY, element: child };
             }
-        }, { element: null, distance: Number.POSITIVE_INFINITY }).element;
+            
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
     
     // Calculate the score based on the current order compared to correct order
@@ -296,24 +331,57 @@ document.addEventListener('DOMContentLoaded', function() {
     style.textContent = `
         .color-container {
             position: relative;
-            overflow: hidden;
+            display: flex;
+            flex-wrap: wrap;
             min-height: 50px;
+            width: 100%;
         }
         .color-tile {
+            display: inline-block;
             position: relative;
             touch-action: none;
+            z-index: 1;
+            box-sizing: border-box;
         }
         .locked-tile {
             border: 2px solid gold !important;
             position: relative !important;
+            z-index: 5 !important;
+        }
+        .placeholder {
+            margin: 2px;
+            box-sizing: border-box;
         }
         #score-display {
             font-weight: bold;
             font-family: Arial, sans-serif;
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* Ensure iPad touch compatibility */
+        html, body {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Debugging visibility */
+        .color-tile {
+            opacity: 1 !important;
+            visibility: visible !important;
         }
     `;
     document.head.appendChild(style);
     
-    // Calculate initial score
-    setTimeout(calculateScore, 500);
+    // Calculate initial score after tiles are positioned
+    setTimeout(calculateScore, 1000);
+    
+    // Diagnostic information
+    console.log(`Color tiles found: ${colorTiles.length}`);
+    console.log(`Container dimensions: ${colorContainer.offsetWidth}x${colorContainer.offsetHeight}`);
+    
+    // Set container height explicitly if needed
+    if (colorContainer.offsetHeight < 50) {
+        colorContainer.style.minHeight = '100px';
+    }
 });
