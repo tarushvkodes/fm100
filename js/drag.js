@@ -361,6 +361,8 @@ document.addEventListener('DOMContentLoaded', function() {
             colorContainer.style.margin = '0';
             colorContainer.style.padding = '10px';
             colorContainer.style.paddingBottom = '100px';
+            colorContainer.style.justifyContent = 'center';
+            colorContainer.style.alignContent = 'start';
             
             // Ensure tiles are visible and properly positioned
             colorTiles.forEach(tile => {
@@ -387,6 +389,38 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Force layout recalculation
         colorContainer.offsetHeight; // Trigger reflow
+    }
+
+    // Updated lockEndTiles function to position locked tiles in opposite corners
+    function lockEndTiles() {
+        const firstTile = correctOrder[0].element;
+        const lastTile = correctOrder[correctOrder.length - 1].element;
+        
+        // Add a special class to visually indicate locked tiles
+        firstTile.classList.add('locked-tile');
+        lastTile.classList.add('locked-tile');
+        
+        // Make them non-draggable
+        firstTile.setAttribute('draggable', false);
+        lastTile.setAttribute('draggable', false);
+        
+        // Position first tile in the top-left corner
+        firstTile.style.gridColumn = '1';
+        firstTile.style.gridRow = '1';
+        
+        // Position last tile in the bottom-right corner
+        const columns = Math.floor(colorContainer.offsetWidth / 46); // Approximate column count
+        const rows = Math.ceil(colorTiles.length / columns); // Approximate row count
+        lastTile.style.gridColumn = `${columns}`;
+        lastTile.style.gridRow = `${rows}`;
+        
+        // Ensure they are added to the container
+        if (colorContainer.firstChild !== firstTile) {
+            colorContainer.insertBefore(firstTile, colorContainer.firstChild);
+        }
+        if (colorContainer.lastChild !== lastTile) {
+            colorContainer.appendChild(lastTile);
+        }
     }
 
     // Enhanced iPad-specific initialization
@@ -448,14 +482,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize iPad support
     initializeIPadSupport();
 
-    // Call initial orientation adjustment
+    // Call initial orientation adjustment and lock tiles
     adjustForOrientation();
+    lockEndTiles();
 
     // Re-adjust layout on orientation change
     window.addEventListener('orientationchange', function() {
         console.log('Orientation changed');
         setTimeout(() => {
             adjustForOrientation();
+            lockEndTiles();
         }, 300); // Allow time for orientation change to settle
+    });
+
+    // Call lockEndTiles after layout adjustments
+    window.addEventListener('resize', function() {
+        setTimeout(() => {
+            adjustForOrientation();
+            lockEndTiles();
+        }, 300);
     });
 });
