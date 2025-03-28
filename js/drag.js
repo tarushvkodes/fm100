@@ -283,71 +283,54 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add Apple Pencil handlers
     function handlePointerDown(e) {
         if (this.classList.contains('locked-tile')) return;
-        
+
         // Check if input is pen/pencil
-        if (e.pointerType === 'pen') {
+        if (e.pointerType === 'pen' || e.pointerType === 'touch') {
             e.preventDefault();
             draggedTile = this;
             this.classList.add('dragging');
-            this.classList.add('pencil-drag');
-            
+
             // Store initial position
             dragStartX = e.clientX;
             dragStartY = e.clientY;
             initialX = this.offsetLeft;
             initialY = this.offsetTop;
-            
+
             // Capture pointer events
             this.setPointerCapture(e.pointerId);
         }
     }
 
     function handlePointerMove(e) {
-        if (!draggedTile || e.pointerType !== 'pen') return;
-        
-        const touch = e.touches[0];
+        if (!draggedTile || (e.pointerType !== 'pen' && e.pointerType !== 'touch')) return;
+
+        e.preventDefault(); // Prevent scrolling during drag
+
         const containerRect = colorContainer.getBoundingClientRect();
-        
-        // Adjust for orientation and scroll
         const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
         const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-        
-        // Position the tile absolutely for dragging
+
+        // Update the position of the dragged tile
         draggedTile.style.position = 'absolute';
-        draggedTile.style.left = `${touch.clientX - dragStartX + initialX - containerRect.left + scrollX}px`;
-        draggedTile.style.top = `${touch.clientY - dragStartY + initialY - containerRect.top + scrollY}px`;
-        draggedTile.style.zIndex = '1000'; // Ensure dragged tile is on top
-        
-        // Find the drop position with an expanded hitbox
-        const hitboxSize = 30; // Larger hitbox for easier touch targeting
-        const afterElement = getDragAfterElement(
-            colorContainer, 
-            touch.clientY, 
-            touch.clientX,
-            hitboxSize
-        );
-        
-        if (afterElement) {
-            // Don't position after the last locked tile
-            const lastElement = correctOrder[correctOrder.length - 1].element;
-            if (afterElement !== lastElement) {
-                const placeholder = document.querySelector('.placeholder');
-                if (placeholder) {
-                    colorContainer.insertBefore(placeholder, afterElement);
-                }
-            }
-        } else {
-            // Don't append if it would make it come after the last tile
-            const lastElement = correctOrder[correctOrder.length - 1].element;
-            const placeholder = document.querySelector('.placeholder');
-            if (placeholder && lastElement && lastElement.previousElementSibling !== placeholder) {
-                colorContainer.insertBefore(placeholder, lastElement);
-            }
-        }
-        
-        e.preventDefault(); // Prevent scrolling during drag
+        draggedTile.style.left = `${e.clientX - dragStartX + initialX - containerRect.left + scrollX}px`;
+        draggedTile.style.top = `${e.clientY - dragStartY + initialY - containerRect.top + scrollY}px`;
+        draggedTile.style.zIndex = '1000';
     }
-    
+
+    function handlePointerUp(e) {
+        if (!draggedTile || (e.pointerType !== 'pen' && e.pointerType !== 'touch')) return;
+
+        // Release pointer capture
+        draggedTile.releasePointerCapture(e.pointerId);
+
+        // Reset styles
+        draggedTile.classList.remove('dragging');
+        draggedTile.style.position = '';
+        draggedTile.style.zIndex = '';
+
+        draggedTile = null;
+    }
+
     // Updated orientation adjustment function
     function adjustForOrientation() {
         const isLandscape = window.matchMedia("(orientation: landscape)").matches;
@@ -478,6 +461,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }, 1000);
     }
+
+    // Ensure proper touch-action CSS for Apple Pencil
+    colorContainer.style.touchAction = 'none';
+    colorTiles.forEach(tile => {
+        tile.style.touchAction = 'none';
+    });
 
     // Initialize iPad support
     initializeIPadSupport();
